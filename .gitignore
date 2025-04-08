@@ -1,0 +1,8 @@
+/pyspark/Datasets/*
+
+!/pyspark/Datasets/ .gitkeep
+
+
+*.parquet
+*.crc
+*_SUCCESS
