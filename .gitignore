@@ -4,7 +4,7 @@
 
 /pyspark/Notebooks/lab6/kafka_2.13-4.0.0
 
-
+/pyspark/Projeto/Datasets/
 
 *.parquet
 *.crc
