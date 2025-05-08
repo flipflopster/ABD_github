@@ -6,6 +6,8 @@
 
 /pyspark/Projeto/Datasets/
 
+/pyspark/Kafka/
+
 *.parquet
 *.crc
 *_SUCCESS
