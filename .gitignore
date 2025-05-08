@@ -9,3 +9,6 @@
 *.parquet
 *.crc
 *_SUCCESS
+*.csv
+*.html
+*.md
