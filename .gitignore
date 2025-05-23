@@ -3,7 +3,9 @@
 !/pyspark/Datasets/ .gitkeep
 
 /pyspark/Notebooks/lab6/kafka_2.13-4.0.0
-/pyspark/Projeto/kafka_2.13-4.0.0
+/pyspark/Projeto/kafka_2.13-4.0.0/*
+!/pyspark/Projeto/kafka_2.13-4.0.0/kafka-python/
+!/pyspark/Projeto/kafka_2.13-4.0.0/kafka-python/**
 
 /pyspark/Projeto/Datasets/
 
