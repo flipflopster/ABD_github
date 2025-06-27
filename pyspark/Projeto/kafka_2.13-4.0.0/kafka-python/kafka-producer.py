@@ -1,103 +1,55 @@
-"""
-This simple code illustrates a Kafka producer:
-- read data from a CSV file, stored locally, books-amazon.csv
-- for each data record, produce a json record
-- send the json record to a Kafka messaging system
-
-We use the Python client library kafka-python from 
-    https://kafka-python.readthedocs.io/en/master/.
-
-Also, see https://pypi.org/project/kafka-python/
-"""
-
-import os, time, json, datetime, csv
+import os
+import time
+import json
+import datetime
 import pandas as pd
-
 from kafka import KafkaProducer
 
-#=======================================================
-# args: could have been set while calling the code
-
+# Параметры
 topic = 'crime-chicago'
-inputfile = '../../Datasets/crimes-small-validation'
-chunksize = 10000  # number of rows
-sleeptime = 1.0
+parquet_file = '../../Datasets/crimes-small-test'
+sleeptime = 1.0  # интервал между сообщениями в секундах
 
-#=======================================================
-
-# Function for jsonifying a timestamp into a string
+# Конвертация дат для JSON
 def datetime_converter(dt):
     if isinstance(dt, datetime.datetime):
         return dt.__str__()
 
+# Callback на успешную отправку
 def on_send_success(metadata):
-    print('Published successfully to Kafka cluster. Metadata is')
-    print(f'Topic: {metadata.topic}, Partition: {metadata.partition}, Offset: {metadata.offset}')
-   
+    print(f'Published to {metadata.topic} partition {metadata.partition} offset {metadata.offset}')
 
+# Callback на ошибку
 def on_send_error(excp):
-    print('I am an errback', exc_info=excp)
-    # handle exception
+    print('Error while sending:', excp)
 
-# Kafka connection
+# Подключение к Kafka
 kafka_producer = KafkaProducer(
     bootstrap_servers='localhost:9092',
     api_version=(3, 9),
-    value_serializer=lambda x: json.dumps(x).encode('utf-8') # instead of byte array
+    value_serializer=lambda x: json.dumps(x).encode('utf-8')
 )
 
-# Emulating the situation that we have real-time data to be sent to kafka
-# And because file might be big, we emulate by reading chunk, using iterator 
-# and chunksize
+# Чтение parquet
+df = pd.read_parquet(parquet_file)
 
+print(f'Total rows to send: {len(df)}')
 
-#parquet_file = '../../Datasets/crimes-small-validation'
-csv_file = '../../Datasets/crimes-small-validation.csv'
+# Отправка в Kafka построчно
+for index, row in df.iterrows():
+    data = row.to_dict()
+    json_data = json.dumps(data, default=datetime_converter)
 
-df = pd.read_parquet(inputfile, engine='pyarrow')
-df.to_csv(csv_file, index=False)
+    print(f'-- Sending: {json_data}')
 
+    try:
+        kafka_producer.send(topic, value=json_data)\
+            .add_callback(on_send_success)\
+            .add_errback(on_send_error)
+    except Exception as e:
+        print(f'Error: {e}')
 
-# Read data from file
-input_data = pd.read_csv(csv_file, iterator=True, chunksize=int(chunksize))
+    time.sleep(sleeptime)
 
-
-
-
-# Open the CSV file
-with open(csv_file, mode='r') as file:
-    # Create a CSV DictReader object
-    csv_reader = csv.DictReader(file)
-
-    # Iterate through the lines in the CSV file
-    for row in csv_reader:
-        # Each row is a dictionary
-        json_data = json.dumps(row, default=datetime_converter)
-        # json_data = row.to_dict(orient='records')
-
-        # Check if any event/error sent
-        print(f'----- Sending to Kafka {json_data}')
-        
-        try:
-            kafka_producer.send(topic, value=json_data).add_callback(on_send_success).add_errback(on_send_error)
-            
-        except Exception as e:
-            print(f'Encountered error while trying to publish: {e}')
-
-        # Block until all pending messages are at least put on the network
-        # But still it may not guarantee delivery or success!
-        # not using because it is just one row
-        # kafka_producer.flush() 
-
-        time.sleep(sleeptime)
-
-# Close the producer
+# Закрытие соединения
 kafka_producer.close()
-
-# Case of blocking until a single message is sent (or timeout)
-# For example, if we want to send the 1st row of
-# a csv file separately
-# columns = pd.read_csv('...', nrows=0).columns
-# future = producer.send(topic, columns)
-# result = future.get(timeout=60)
-
